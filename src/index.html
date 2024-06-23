@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TextAlive Music App</title>
+  <script src = https://unpkg.com/three@0.152.2/build/three.module.js> </script>
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
@@ -11,6 +12,15 @@
   <button id="playButton">再生</button>
   <div id="lyrics"></div>
   <div id="canvas-container"></div>
+
+  <!-- 視点操作用のボタン -->
+  <div id="controls">
+    <button id="rotateLeft">左回転</button>
+    <button id="rotateRight">右回転</button>
+    <button id="rotateUp">上回転</button>
+    <button id="rotateDown">下回転</button>
+  </div>
+
   <script src="./index.js"></script>
 </body>
 </html>
