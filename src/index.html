@@ -1,26 +1,33 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TextAlive Music App</title>
-  <script src = https://unpkg.com/three@0.152.2/build/three.module.js> </script>
-  <link rel="stylesheet" href="./style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Lyric Particle App</title>
+    <script src="https://unpkg.com/three@0.152.2/build/three.module.js"></script>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <h1>TextAlive Music App</h1>
-  <button id="playButton">再生</button>
-  <div id="lyrics"></div>
-  <div id="canvas-container"></div>
+    <div id="container"></div>
+    <div id="controls">
+        <button id="playBtn" disabled>再生</button>
+        <button id="pauseBtn" disabled>停止</button>
+        <button id="explodeBtn" disabled>破裂</button>
+        <div id="volumeControl">
+            <label for="volumeSlider">音量:</label>
+            <input type="range" id="volumeSlider" min="0" max="100" value="100">
+        </div>
+        <div id="movementControl">
+            <button id="moveUpBtn">上</button>
+            <button id="moveDownBtn">下</button>
+            <button id="moveLeftBtn">左</button>
+            <button id="moveRightBtn">右</button>
+            <button id="resetBtn">リセット</button>
+        </div>
+    </div>
+    <div id="info">
+    </div>
 
-  <!-- 視点操作用のボタン -->
-  <div id="controls">
-    <button id="rotateLeft">左回転</button>
-    <button id="rotateRight">右回転</button>
-    <button id="rotateUp">上回転</button>
-    <button id="rotateDown">下回転</button>
-  </div>
-
-  <script src="./index.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>

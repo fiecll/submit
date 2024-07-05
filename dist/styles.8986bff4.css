@@ -1,0 +1,58 @@
+body {
+  margin: 0;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+}
+
+#container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#controls {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 10px;
+  border-radius: 5px;
+}
+
+#playPauseBtn {
+  margin-bottom: 10px;
+}
+
+#volumeControl {
+  display: flex;
+  align-items: center;
+}
+
+#volumeControl label {
+  color: white;
+  margin-right: 10px;
+}
+
+#movementControl {
+  margin-top: 10px;
+}
+
+#movementControl button {
+  margin: 5px;
+  padding: 5px 10px;
+}
+
+#info {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  color: white;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 10px;
+  border-radius: 5px;
+}
+
+
+/*# sourceMappingURL=/styles.8986bff4.css.map */

@@ -47889,6 +47889,7 @@ player.addListener({
         var text = char.parent.text;
         var ruby = char.parent.parent.ruby;
         lyricsContainer.innerHTML = ruby ? ruby.text : text;
+        console.log(char.text);
       }
     }
   }
@@ -47940,7 +47941,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "5022" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "11970" + '/');
   ws.onmessage = function (event) {
     checkedAssets = {};
     assetsToAccept = [];
