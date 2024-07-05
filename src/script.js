@@ -4,9 +4,10 @@ import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { TextureLoader } from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 let particles;
-let scene, camera, renderer;
+let scene, camera, renderer, controls;
 let currentLyrics = "";
 let confettiSystem;
 let wordMeshes = [];
@@ -102,11 +103,77 @@ function explodeText() {
 }
 
 function createConfetti() {
-    // 既存のconfetti作成コードをそのまま使用
+    const confettiCount = 200;
+    const confettiGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(confettiCount * 3);
+    const colors = new Float32Array(confettiCount * 3);
+    const velocities = new Float32Array(confettiCount * 3);
+    const rotations = new Float32Array(confettiCount * 3);
+    const color = new THREE.Color();
+
+    for (let i = 0; i < confettiCount; i++) {
+        const x = (Math.random() - 0.5) * 10;
+        const y = (Math.random() - 0.5) * 10;
+        const z = (Math.random() - 0.5) * 10;
+
+        positions[i * 3] = x;
+        positions[i * 3 + 1] = y;
+        positions[i * 3 + 2] = z;
+
+        velocities[i * 3] = (Math.random() - 0.5) * 0.1;
+        velocities[i * 3 + 1] = Math.random() * -0.1 - 0.05;
+        velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.1;
+
+        rotations[i * 3] = Math.random() * Math.PI * 2;
+        rotations[i * 3 + 1] = Math.random() * Math.PI * 2;
+        rotations[i * 3 + 2] = Math.random() * Math.PI * 2;
+
+        color.setHSL(Math.random(), 1.0, 0.5);
+        colors[i * 3] = color.r;
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
+    }
+
+    confettiGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    confettiGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const confettiMaterial = new THREE.PointsMaterial({ size: 0.1, vertexColors: true });
+    confettiSystem = new THREE.Points(confettiGeometry, confettiMaterial);
+    confettiSystem.userData.velocities = velocities;
+    confettiSystem.userData.rotations = rotations;
+
+    scene.add(confettiSystem);
+
+    setTimeout(() => {
+        scene.remove(confettiSystem);
+        confettiSystem = null;
+    }, 3000);
 }
 
 function updateConfetti() {
-    // 既存のconfetti更新コードをそのまま使用
+    if (!confettiSystem) return;
+
+    const positions = confettiSystem.geometry.attributes.position.array;
+    const velocities = confettiSystem.userData.velocities;
+    const rotations = confettiSystem.userData.rotations;
+
+    for (let i = 0; i < positions.length; i += 3) {
+        positions[i] += velocities[i];
+        positions[i + 1] += velocities[i + 1];
+        positions[i + 2] += velocities[i + 2];
+
+        velocities[i + 1] -= 0.0098;
+
+        rotations[i] += 0.01;
+        rotations[i + 1] += 0.01;
+        rotations[i + 2] += 0.01;
+
+        const scale = Math.sin(rotations[i]) * 0.3 + 0.7;
+        confettiSystem.geometry.attributes.position.array[i] *= scale;
+        confettiSystem.geometry.attributes.position.array[i + 1] *= scale;
+    }
+
+    confettiSystem.geometry.attributes.position.needsUpdate = true;
 }
 
 function changeVolume() {
@@ -131,6 +198,14 @@ function initThree() {
     });
 
     camera.position.z = 5;
+
+    // OrbitControlsの追加
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true; // 慣性を有効にする
+    controls.dampingFactor = 0.25; // 慣性のダンピングファクター
+    controls.screenSpacePanning = false; // 画面のパン操作を無効にする
+    controls.minDistance = 1; // カメラの最小距離
+    controls.maxDistance = 100; // カメラの最大距離
 
     particles = new THREE.Group();
     scene.add(particles);
@@ -200,6 +275,9 @@ function animate() {
     requestAnimationFrame(animate);
     updateFallingWords();
     updateConfetti();
+
+    controls.update(); // 追加
+
     renderer.render(scene, camera);
 }
 
