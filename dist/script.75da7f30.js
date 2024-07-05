@@ -50640,7 +50640,7 @@ var wordMeshes = [];
 var fallingWords = [];
 var player = new _textaliveAppApi.Player({
   app: {
-    token: "rR1JoTmnx0KeK0Wn",
+    token: "6OdzAkUG3Vc5B9nJ",
     valenceArousalEnabled: true,
     vocalAmplitudeEnabled: true
   },
@@ -50826,7 +50826,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "11423" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "13956" + '/');
   ws.onmessage = function (event) {
     checkedAssets = {};
     assetsToAccept = [];
