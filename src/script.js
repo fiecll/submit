@@ -204,11 +204,12 @@ function initThree() {
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     renderer = new THREE.WebGLRenderer({
-        antialias: true,
+        antialias: false,
+        powerPreference: "low-power"
     });
+    renderer.setPixelRatio(window.devicePixelRatio * 0.5);
 
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
     document.getElementById("container").appendChild(renderer.domElement);
 
     const textureLoader = new TextureLoader();
@@ -230,7 +231,11 @@ function initThree() {
 
     animate();
 
-    window.addEventListener("resize", onWindowResize);
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(onWindowResize, 100);
+    });
 }
 
 function addNewLyrics() {
@@ -306,7 +311,9 @@ function animate() {
     updateConfetti();
     controls.update();
 
-    renderer.render(scene, camera);
+    if (renderer && camera) {
+        renderer.render(scene, camera);
+    }
 }
 
 function onWindowResize() {
@@ -314,3 +321,25 @@ function onWindowResize() {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
+
+function disposeMesh(mesh) {
+    if (mesh.geometry) mesh.geometry.dispose();
+    if (mesh.material) {
+        if (Array.isArray(mesh.material)) {
+            mesh.material.forEach(material => material.dispose());
+        } else {
+            mesh.material.dispose();
+        }
+    }
+}
+
+function cleanUpScene() {
+    scene.traverse(object => {
+        if (object.isMesh) {
+            disposeMesh(object);
+        }
+    });
+}
+
+// 必要なタイミングでクリーンアップを呼び出す例
+window.addEventListener('beforeunload', cleanUpScene);

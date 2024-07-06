@@ -51605,10 +51605,11 @@ function initThree() {
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
   renderer = new THREE.WebGLRenderer({
-    antialias: true
+    antialias: false,
+    powerPreference: "low-power"
   });
+  renderer.setPixelRatio(window.devicePixelRatio * 0.5);
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(window.devicePixelRatio);
   document.getElementById("container").appendChild(renderer.domElement);
   var textureLoader = new _three.TextureLoader();
   textureLoader.load('starry_sky.jpg', function (texture) {
@@ -51624,7 +51625,11 @@ function initThree() {
   particles = new THREE.Group();
   scene.add(particles);
   animate();
-  window.addEventListener("resize", onWindowResize);
+  var resizeTimeout;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(onWindowResize, 100);
+  });
 }
 function addNewLyrics() {
   if (!currentLyrics) return;
@@ -51685,13 +51690,37 @@ function animate() {
   updateFallingWords();
   updateConfetti();
   controls.update();
-  renderer.render(scene, camera);
+  if (renderer && camera) {
+    renderer.render(scene, camera);
+  }
 }
 function onWindowResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
+function disposeMesh(mesh) {
+  if (mesh.geometry) mesh.geometry.dispose();
+  if (mesh.material) {
+    if (Array.isArray(mesh.material)) {
+      mesh.material.forEach(function (material) {
+        return material.dispose();
+      });
+    } else {
+      mesh.material.dispose();
+    }
+  }
+}
+function cleanUpScene() {
+  scene.traverse(function (object) {
+    if (object.isMesh) {
+      disposeMesh(object);
+    }
+  });
+}
+
+// 必要なタイミングでクリーンアップを呼び出す例
+window.addEventListener('beforeunload', cleanUpScene);
 },{"textalive-app-api":"../node_modules/textalive-app-api/dist/index.es.js","three":"../node_modules/three/build/three.module.js","three/examples/jsm/loaders/FontLoader.js":"../node_modules/three/examples/jsm/loaders/FontLoader.js","three/examples/jsm/geometries/TextGeometry.js":"../node_modules/three/examples/jsm/geometries/TextGeometry.js","three/examples/jsm/loaders/GLTFLoader":"../node_modules/three/examples/jsm/loaders/GLTFLoader.js","three/examples/jsm/controls/OrbitControls.js":"../node_modules/three/examples/jsm/controls/OrbitControls.js"}],"../node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
@@ -51717,7 +51746,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "9487" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "13506" + '/');
   ws.onmessage = function (event) {
     checkedAssets = {};
     assetsToAccept = [];
