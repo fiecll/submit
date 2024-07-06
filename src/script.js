@@ -2,8 +2,6 @@ import { Player } from "textalive-app-api";
 import * as THREE from 'three';
 import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
-import { TextureLoader } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 let particles;
@@ -13,6 +11,10 @@ let confettiSystem;
 let wordMeshes = [];
 let fallingWords = [];
 let lastRenderTime = 0;
+let geometries = {};
+let wordPool = [];
+
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
 const player = new Player({
     app: {
@@ -27,7 +29,6 @@ player.addListener({
     onAppReady: (app) => {
         if (!app.managed) {
             player.createFromSongUrl("https://piapro.jp/t/YW_d/20210206123357");
-            console.log(player.data.song);
         }
         initializeControls();
     },
@@ -41,7 +42,6 @@ player.addListener({
         initThree();
     },
     onTimeUpdate: (position) => {
-        console.log("再生位置のアップデート:", position, "ミリ秒");
         if (player.video) {
             const now = player.timer.position;
             const phrase = player.video.findChar(now);
@@ -56,12 +56,10 @@ player.addListener({
     onPlay() {
         document.getElementById("playBtn").disabled = true;
         document.getElementById("pauseBtn").disabled = false;
-        console.log("再生");
     },
     onPause() {
         document.getElementById("playBtn").disabled = false;
         document.getElementById("pauseBtn").disabled = true;
-        console.log("一時停止");
     },
 });
 
@@ -76,37 +74,35 @@ function initializeControls() {
 
     playBtn.addEventListener("click", play);
     pauseBtn.addEventListener("click", pause);
-    explodeBtn.addEventListener("click", explodeText);
     volumeSlider.addEventListener("input", changeVolume);
     hamburgerMenu.addEventListener("click", () => {
         controlsContainer.classList.toggle("hidden");
     });
     seekbar.addEventListener("input", seek);
+
+    let touchStartTime;
+    explodeBtn.addEventListener("touchstart", () => {
+        touchStartTime = Date.now();
+    });
+    explodeBtn.addEventListener("touchend", () => {
+        if (Date.now() - touchStartTime < 300) {
+            explodeText();
+        }
+    });
+    explodeBtn.addEventListener("click", explodeText);
 }
 
 function play() {
-    player.requestPlay().then(() => {
-        console.log("再生開始");
-    }).catch((e) => {
-        console.log("エラー: " + e.message);
-    });
+    player.requestPlay();
 }
 
 function pause() {
-    player.requestPause().then(() => {
-        console.log("一時停止");
-    }).catch((e) => {
-        console.log("エラー: " + e.message);
-    });
+    player.requestPause();
 }
 
 function seek() {
     const seekbar = document.getElementById("seekbar");
-    player.requestMediaSeek(seekbar.value).then(() => {
-        console.log("シーク位置:", seekbar.value);
-    }).catch((e) => {
-        console.log("エラー: " + e.message);
-    });
+    player.requestMediaSeek(seekbar.value);
 }
 
 function explodeText() {
@@ -123,7 +119,7 @@ function explodeText() {
 }
 
 function createConfetti() {
-    const confettiCount = 100; // パーティクルの数を減らす
+    const confettiCount = isMobile ? 50 : 100;
     const confettiGeometry = new THREE.BufferGeometry();
     const positions = new Float32Array(confettiCount * 3);
     const colors = new Float32Array(confettiCount * 3);
@@ -166,6 +162,8 @@ function createConfetti() {
 
     setTimeout(() => {
         scene.remove(confettiSystem);
+        confettiSystem.geometry.dispose();
+        confettiSystem.material.dispose();
         confettiSystem = null;
     }, 3000);
 }
@@ -198,7 +196,7 @@ function updateConfetti() {
 
 function changeVolume() {
     const volume = document.getElementById("volumeSlider").value / 100;
-    player.volume = volume * 10;
+    player.volume = volume;
 }
 
 function initThree() {
@@ -208,13 +206,19 @@ function initThree() {
         antialias: false,
         powerPreference: "low-power"
     });
-    renderer.setPixelRatio(window.devicePixelRatio * 0.5);
+
+    if (isMobile) {
+        renderer.setPixelRatio(1);
+    } else {
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    }
 
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById("container").appendChild(renderer.domElement);
 
-    const textureLoader = new TextureLoader();
-    textureLoader.load('low_res_starry_sky.jpg', function (texture) { // 低解像度のテクスチャを使用
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load('starry_sky.jpg', function (texture) {
+        texture.minFilter = THREE.LinearFilter;
         scene.background = texture;
     });
 
@@ -241,23 +245,23 @@ function initThree() {
 
 function addNewLyrics() {
     if (!currentLyrics) return;
-    console.log(currentLyrics);
 
-    const words = currentLyrics.split(/\s+/);
+    const maxWords = isMobile ? 3 : 5;
+    const words = currentLyrics.split(/\s+/).slice(0, maxWords);
     const fontLoader = new FontLoader();
     fontLoader.load('Zen Old Mincho Black_Regular.json', (font) => {
         words.forEach((word, index) => {
-            const geometry = new TextGeometry(word, {
-                font: font,
-                size: 0.4,
-                height: 0.1,
-            });
-
-            geometry.computeBoundingBox();
-            geometry.center();
+            if (!geometries[word]) {
+                geometries[word] = new TextGeometry(word, {
+                    font: font,
+                    size: 0.4,
+                    height: 0.1,
+                });
+                geometries[word].center();
+            }
 
             const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
-            const textMesh = new THREE.Mesh(geometry, material);
+            const textMesh = getWordMesh(word, material);
 
             textMesh.position.set(
                 (Math.random() - 0.5) * 5,
@@ -281,10 +285,27 @@ function addNewLyrics() {
     });
 }
 
+function getWordMesh(word, material) {
+    if (wordPool.length > 0) {
+        const mesh = wordPool.pop();
+        mesh.geometry = geometries[word];
+        mesh.material = material;
+        return mesh;
+    }
+    return new THREE.Mesh(geometries[word], material);
+}
+
+function releaseWordMesh(mesh) {
+    if (wordPool.length < 50) {
+        wordPool.push(mesh);
+    } else {
+        disposeMesh(mesh);
+    }
+}
+
 function changeTextColor() {
     const valence = player.getValenceArousal(player.timer.position);
     const arousal = player.getValenceArousal(player.timer.position);
-    console.log("valence:", valence, "arousal:", arousal);
 
     const color = new THREE.Color();
     color.setHSL((valence + 1) / 2, 1, (arousal + 1) / 2);
@@ -301,11 +322,10 @@ function updateFallingWords() {
         word.mesh.rotation.y += word.rotationSpeed.y;
         word.mesh.rotation.z += word.rotationSpeed.z;
 
-        // 画面下部に到達した単語を削除
         if (word.mesh.position.y < -5) {
             particles.remove(word.mesh);
             fallingWords.splice(i, 1);
-            disposeMesh(word.mesh);
+            releaseWordMesh(word.mesh);
         }
     }
 }
@@ -313,8 +333,7 @@ function updateFallingWords() {
 function animate(time) {
     requestAnimationFrame(animate);
 
-    // 一定時間ごとにレンダリングを行う
-    if (time - lastRenderTime > 1000 / 30) { // 30 FPS に制限
+    if (time - lastRenderTime > 1000 / (isMobile ? 20 : 30)) {
         lastRenderTime = time;
         updateFallingWords();
         updateConfetti();
@@ -344,12 +363,21 @@ function disposeMesh(mesh) {
 }
 
 function cleanUpScene() {
-    scene.traverse(object => {
-        if (object.isMesh) {
-            disposeMesh(object);
-        }
+    wordMeshes.forEach(mesh => {
+        disposeMesh(mesh);
     });
+    wordMeshes = [];
+    fallingWords = [];
+    if (confettiSystem) {
+        scene.remove(confettiSystem);
+        confettiSystem.geometry.dispose();
+        confettiSystem.material.dispose();
+        confettiSystem = null;
+    }
+    Object.values(geometries).forEach(geometry => geometry.dispose());
+    geometries = {};
+    wordPool.forEach(mesh => disposeMesh(mesh));
+    wordPool = [];
 }
 
-// 必要なタイミングでクリーンアップを呼び出す例
 window.addEventListener('beforeunload', cleanUpScene);
