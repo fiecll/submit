@@ -196,7 +196,7 @@ function updateConfetti() {
 
 function changeVolume() {
     const volume = document.getElementById("volumeSlider").value / 100;
-    player.volume = volume;
+    player.volume = volume*100;
 }
 
 function initThree() {
