@@ -9,7 +9,15 @@
 <script src="/styles.8986bff4.js"></script></head>
 <body>
     <div id="container"></div>
-    <div id="controls">
+    <div id="seekbarContainer">
+        <input type="range" id="seekbar" value="0" min="0" max="100">
+    </div>
+    <div id="hamburger-menu" class="hamburger-menu">
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+    </div>
+    <div id="controls" class="hidden">
         <button id="playBtn" disabled="">再生</button>
         <button id="pauseBtn" disabled="">停止</button>
         <button id="explodeBtn" disabled="">破裂</button>

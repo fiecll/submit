@@ -4,9 +4,10 @@ import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { TextureLoader } from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 let particles;
-let scene, camera, renderer;
+let scene, camera, renderer, controls;
 let currentLyrics = "";
 let confettiSystem;
 let wordMeshes = [];
@@ -33,6 +34,7 @@ player.addListener({
         document.getElementById("playBtn").disabled = false;
         document.getElementById("pauseBtn").disabled = false;
         document.getElementById("explodeBtn").disabled = false;
+        document.getElementById("seekbar").max = player.video.duration;
     },
     onTimerReady() {
         initThree();
@@ -41,11 +43,13 @@ player.addListener({
         console.log("再生位置のアップデート:", position, "ミリ秒");
         if (player.video) {
             const now = player.timer.position;
-            const phrase = player.video.findPhrase(now);
+            const phrase = player.video.findChar(now);
             if (phrase && phrase.text !== currentLyrics) {
                 currentLyrics = phrase.text;
                 addNewLyrics();
             }
+            changeTextColor();
+            document.getElementById("seekbar").value = now;
         }
     },
     onPlay() {
@@ -65,11 +69,18 @@ function initializeControls() {
     const pauseBtn = document.getElementById("pauseBtn");
     const explodeBtn = document.getElementById("explodeBtn");
     const volumeSlider = document.getElementById("volumeSlider");
+    const hamburgerMenu = document.getElementById("hamburger-menu");
+    const controlsContainer = document.getElementById("controls");
+    const seekbar = document.getElementById("seekbar");
 
     playBtn.addEventListener("click", play);
     pauseBtn.addEventListener("click", pause);
     explodeBtn.addEventListener("click", explodeText);
     volumeSlider.addEventListener("input", changeVolume);
+    hamburgerMenu.addEventListener("click", () => {
+        controlsContainer.classList.toggle("hidden");
+    });
+    seekbar.addEventListener("input", seek);
 }
 
 function play() {
@@ -83,6 +94,15 @@ function play() {
 function pause() {
     player.requestPause().then(() => {
         console.log("一時停止");
+    }).catch((e) => {
+        console.log("エラー: " + e.message);
+    });
+}
+
+function seek() {
+    const seekbar = document.getElementById("seekbar");
+    player.requestMediaSeek(seekbar.value).then(() => {
+        console.log("シーク位置:", seekbar.value);
     }).catch((e) => {
         console.log("エラー: " + e.message);
     });
@@ -131,9 +151,9 @@ function createConfetti() {
         colors[i * 3] = color.r;
         colors[i * 3 + 1] = color.g;
         colors[i * 3 + 2] = color.b;
-}
+    }
 
-confettiGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    confettiGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     confettiGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
     const confettiMaterial = new THREE.PointsMaterial({ size: 0.1, vertexColors: true });
@@ -148,7 +168,6 @@ confettiGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3
         confettiSystem = null;
     }, 3000);
 }
-
 
 function updateConfetti() {
     if (!confettiSystem) return;
@@ -198,6 +217,13 @@ function initThree() {
     });
 
     camera.position.z = 5;
+
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.25;
+    controls.screenSpacePanning = false;
+    controls.minDistance = 1;
+    controls.maxDistance = 100;
 
     particles = new THREE.Group();
     scene.add(particles);
@@ -249,6 +275,18 @@ function addNewLyrics() {
     });
 }
 
+function changeTextColor() {
+    const valence = player.getValenceArousal(player.timer.position);
+    const arousal = player.getValenceArousal(player.timer.position);
+    console.log("valence:", valence, "arousal:", arousal);
+
+    const color = new THREE.Color();
+    color.setHSL((valence + 1) / 2, 1, (arousal + 1) / 2);
+    wordMeshes.forEach(mesh => {
+        mesh.material.color.set(color);
+    });
+}
+
 function updateFallingWords() {
     fallingWords.forEach((word, index) => {
         word.mesh.position.y -= word.speed;
@@ -256,7 +294,6 @@ function updateFallingWords() {
         word.mesh.rotation.y += word.rotationSpeed.y;
         word.mesh.rotation.z += word.rotationSpeed.z;
 
-        // 画面下部に到達した単語を上に戻す
         if (word.mesh.position.y < -5) {
             word.mesh.position.y = 10;
         }
@@ -267,6 +304,8 @@ function animate() {
     requestAnimationFrame(animate);
     updateFallingWords();
     updateConfetti();
+    controls.update();
+
     renderer.render(scene, camera);
 }
 
