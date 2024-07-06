@@ -12,6 +12,7 @@ let currentLyrics = "";
 let confettiSystem;
 let wordMeshes = [];
 let fallingWords = [];
+let lastRenderTime = 0;
 
 const player = new Player({
     app: {
@@ -122,7 +123,7 @@ function explodeText() {
 }
 
 function createConfetti() {
-    const confettiCount = 200;
+    const confettiCount = 100; // パーティクルの数を減らす
     const confettiGeometry = new THREE.BufferGeometry();
     const positions = new Float32Array(confettiCount * 3);
     const colors = new Float32Array(confettiCount * 3);
@@ -213,7 +214,7 @@ function initThree() {
     document.getElementById("container").appendChild(renderer.domElement);
 
     const textureLoader = new TextureLoader();
-    textureLoader.load('starry_sky.jpg', function (texture) {
+    textureLoader.load('low_res_starry_sky.jpg', function (texture) { // 低解像度のテクスチャを使用
         scene.background = texture;
     });
 
@@ -305,14 +306,19 @@ function updateFallingWords() {
     });
 }
 
-function animate() {
+function animate(time) {
     requestAnimationFrame(animate);
-    updateFallingWords();
-    updateConfetti();
-    controls.update();
 
-    if (renderer && camera) {
-        renderer.render(scene, camera);
+    // 一定時間ごとにレンダリングを行う
+    if (time - lastRenderTime > 1000 / 30) { // 30 FPS に制限
+        lastRenderTime = time;
+        updateFallingWords();
+        updateConfetti();
+        controls.update();
+
+        if (renderer && camera) {
+            renderer.render(scene, camera);
+        }
     }
 }
 
