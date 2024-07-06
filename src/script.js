@@ -216,11 +216,11 @@ function initThree() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById("container").appendChild(renderer.domElement);
 
-    const textureLoader = new THREE.TextureLoader();
-    textureLoader.load('starry_sky.jpg', function (texture) {
-        texture.minFilter = THREE.LinearFilter;
-        scene.background = texture;
-    });
+    //const textureLoader = new THREE.TextureLoader();
+    // textureLoader.load('starry_sky.jpg', function (texture) {
+    //     texture.minFilter = THREE.LinearFilter;
+    //     scene.background = texture;
+    // });
 
     camera.position.z = 5;
 
