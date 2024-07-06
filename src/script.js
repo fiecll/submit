@@ -294,16 +294,20 @@ function changeTextColor() {
 }
 
 function updateFallingWords() {
-    fallingWords.forEach((word, index) => {
+    for (let i = fallingWords.length - 1; i >= 0; i--) {
+        const word = fallingWords[i];
         word.mesh.position.y -= word.speed;
         word.mesh.rotation.x += word.rotationSpeed.x;
         word.mesh.rotation.y += word.rotationSpeed.y;
         word.mesh.rotation.z += word.rotationSpeed.z;
 
+        // 画面下部に到達した単語を削除
         if (word.mesh.position.y < -5) {
-            word.mesh.position.y = 10;
+            particles.remove(word.mesh);
+            fallingWords.splice(i, 1);
+            disposeMesh(word.mesh);
         }
-    });
+    }
 }
 
 function animate(time) {

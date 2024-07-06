@@ -51442,6 +51442,7 @@ var currentLyrics = "";
 var confettiSystem;
 var wordMeshes = [];
 var fallingWords = [];
+var lastRenderTime = 0;
 var player = new _textaliveAppApi.Player({
   app: {
     token: "GfeiLX99kNC1YEyp",
@@ -51538,7 +51539,7 @@ function explodeText() {
   createConfetti();
 }
 function createConfetti() {
-  var confettiCount = 200;
+  var confettiCount = 100; // パーティクルの数を減らす
   var confettiGeometry = new THREE.BufferGeometry();
   var positions = new Float32Array(confettiCount * 3);
   var colors = new Float32Array(confettiCount * 3);
@@ -51612,7 +51613,8 @@ function initThree() {
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.getElementById("container").appendChild(renderer.domElement);
   var textureLoader = new _three.TextureLoader();
-  textureLoader.load('starry_sky.jpg', function (texture) {
+  textureLoader.load('low_res_starry_sky.jpg', function (texture) {
+    // 低解像度のテクスチャを使用
     scene.background = texture;
   });
   camera.position.z = 5;
@@ -51675,23 +51677,34 @@ function changeTextColor() {
   });
 }
 function updateFallingWords() {
-  fallingWords.forEach(function (word, index) {
+  for (var i = fallingWords.length - 1; i >= 0; i--) {
+    var word = fallingWords[i];
     word.mesh.position.y -= word.speed;
     word.mesh.rotation.x += word.rotationSpeed.x;
     word.mesh.rotation.y += word.rotationSpeed.y;
     word.mesh.rotation.z += word.rotationSpeed.z;
+
+    // 画面下部に到達した単語を削除
     if (word.mesh.position.y < -5) {
-      word.mesh.position.y = 10;
+      particles.remove(word.mesh);
+      fallingWords.splice(i, 1);
+      disposeMesh(word.mesh);
     }
-  });
+  }
 }
-function animate() {
+function animate(time) {
   requestAnimationFrame(animate);
-  updateFallingWords();
-  updateConfetti();
-  controls.update();
-  if (renderer && camera) {
-    renderer.render(scene, camera);
+
+  // 一定時間ごとにレンダリングを行う
+  if (time - lastRenderTime > 1000 / 30) {
+    // 30 FPS に制限
+    lastRenderTime = time;
+    updateFallingWords();
+    updateConfetti();
+    controls.update();
+    if (renderer && camera) {
+      renderer.render(scene, camera);
+    }
   }
 }
 function onWindowResize() {
@@ -51746,7 +51759,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "13506" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "1917" + '/');
   ws.onmessage = function (event) {
     checkedAssets = {};
     assetsToAccept = [];
