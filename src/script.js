@@ -13,6 +13,7 @@ let fallingWords = [];
 let lastRenderTime = 0;
 let geometries = {};
 let wordPool = [];
+let cachedFont = null;
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
@@ -47,7 +48,7 @@ player.addListener({
             const phrase = player.video.findChar(now);
             if (phrase && phrase.text !== currentLyrics) {
                 currentLyrics = phrase.text;
-                addNewLyrics();
+                debouncedAddNewLyrics();
             }
             changeTextColor();
             document.getElementById("seekbar").value = now;
@@ -62,6 +63,15 @@ player.addListener({
         document.getElementById("pauseBtn").disabled = true;
     },
 });
+
+function preloadFont() {
+    const fontLoader = new FontLoader();
+    fontLoader.load('Zen Old Mincho Black_Regular.json', (font) => {
+        cachedFont = font;
+    });
+}
+
+preloadFont();
 
 function initializeControls() {
     const playBtn = document.getElementById("playBtn");
@@ -217,7 +227,7 @@ function initThree() {
     document.getElementById("container").appendChild(renderer.domElement);
 
     const textureLoader = new THREE.TextureLoader();
-    textureLoader.load('low_res_starry_sky.jpg', function (texture) {
+    textureLoader.load('starry_sky.jpg', function (texture) {
         texture.minFilter = THREE.LinearFilter;
         scene.background = texture;
     });
@@ -244,44 +254,41 @@ function initThree() {
 }
 
 function addNewLyrics() {
-    if (!currentLyrics) return;
+    if (!currentLyrics || !cachedFont) return;
 
     const maxWords = isMobile ? 3 : 5;
     const words = currentLyrics.split(/\s+/).slice(0, maxWords);
-    const fontLoader = new FontLoader();
-    fontLoader.load('Zen Old Mincho Black_Regular.json', (font) => {
-        words.forEach((word, index) => {
-            if (!geometries[word]) {
-                geometries[word] = new TextGeometry(word, {
-                    font: font,
-                    size: 0.4,
-                    height: 0.1,
-                });
-                geometries[word].center();
-            }
-
-            const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
-            const textMesh = getWordMesh(word, material);
-
-            textMesh.position.set(
-                (Math.random() - 0.5) * 5,
-                10 + index * 2,
-                (Math.random() - 0.5) * 5
-            );
-
-            wordMeshes.push(textMesh);
-            fallingWords.push({
-                mesh: textMesh,
-                speed: 0.05 + Math.random() * 0.05,
-                rotationSpeed: {
-                    x: (Math.random() - 0.5) * 0.02,
-                    y: (Math.random() - 0.5) * 0.02,
-                    z: (Math.random() - 0.5) * 0.02
-                }
+    words.forEach((word, index) => {
+        if (!geometries[word]) {
+            geometries[word] = new TextGeometry(word, {
+                font: cachedFont,
+                size: 0.4,
+                height: 0.1,
             });
+            geometries[word].center();
+        }
 
-            particles.add(textMesh);
+        const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const textMesh = getWordMesh(word, material);
+
+        textMesh.position.set(
+            (Math.random() - 0.5) * 5,
+            10 + index * 2,
+            (Math.random() - 0.5) * 5
+        );
+
+        wordMeshes.push(textMesh);
+        fallingWords.push({
+            mesh: textMesh,
+            speed: 0.05 + Math.random() * 0.05,
+            rotationSpeed: {
+                x: (Math.random() - 0.5) * 0.02,
+                y: (Math.random() - 0.5) * 0.02,
+                z: (Math.random() - 0.5) * 0.02
+            }
         });
+
+        particles.add(textMesh);
     });
 }
 
@@ -381,3 +388,13 @@ function cleanUpScene() {
 }
 
 window.addEventListener('beforeunload', cleanUpScene);
+
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
+const debouncedAddNewLyrics = debounce(addNewLyrics, 300);

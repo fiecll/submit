@@ -48793,6 +48793,7 @@ var fallingWords = [];
 var lastRenderTime = 0;
 var geometries = {};
 var wordPool = [];
+var cachedFont = null;
 var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 var player = new _textaliveAppApi.Player({
   app: {
@@ -48824,7 +48825,7 @@ player.addListener({
       var phrase = player.video.findChar(now);
       if (phrase && phrase.text !== currentLyrics) {
         currentLyrics = phrase.text;
-        addNewLyrics();
+        debouncedAddNewLyrics();
       }
       changeTextColor();
       document.getElementById("seekbar").value = now;
@@ -48839,6 +48840,13 @@ player.addListener({
     document.getElementById("pauseBtn").disabled = true;
   }
 });
+function preloadFont() {
+  var fontLoader = new _FontLoader.FontLoader();
+  fontLoader.load('Zen Old Mincho Black_Regular.json', function (font) {
+    cachedFont = font;
+  });
+}
+preloadFont();
 function initializeControls() {
   var playBtn = document.getElementById("playBtn");
   var pauseBtn = document.getElementById("pauseBtn");
@@ -48946,7 +48954,7 @@ function updateConfetti() {
 }
 function changeVolume() {
   var volume = document.getElementById("volumeSlider").value / 100;
-  player.volume = volume * 100;
+  player.volume = volume;
 }
 function initThree() {
   scene = new THREE.Scene();
@@ -48984,37 +48992,34 @@ function initThree() {
   });
 }
 function addNewLyrics() {
-  if (!currentLyrics) return;
+  if (!currentLyrics || !cachedFont) return;
   var maxWords = isMobile ? 3 : 5;
   var words = currentLyrics.split(/\s+/).slice(0, maxWords);
-  var fontLoader = new _FontLoader.FontLoader();
-  fontLoader.load('Zen Old Mincho Black_Regular.json', function (font) {
-    words.forEach(function (word, index) {
-      if (!geometries[word]) {
-        geometries[word] = new _TextGeometry.TextGeometry(word, {
-          font: font,
-          size: 0.4,
-          height: 0.1
-        });
-        geometries[word].center();
-      }
-      var material = new THREE.MeshBasicMaterial({
-        color: 0xffffff
+  words.forEach(function (word, index) {
+    if (!geometries[word]) {
+      geometries[word] = new _TextGeometry.TextGeometry(word, {
+        font: cachedFont,
+        size: 0.4,
+        height: 0.1
       });
-      var textMesh = getWordMesh(word, material);
-      textMesh.position.set((Math.random() - 0.5) * 5, 10 + index * 2, (Math.random() - 0.5) * 5);
-      wordMeshes.push(textMesh);
-      fallingWords.push({
-        mesh: textMesh,
-        speed: 0.05 + Math.random() * 0.05,
-        rotationSpeed: {
-          x: (Math.random() - 0.5) * 0.02,
-          y: (Math.random() - 0.5) * 0.02,
-          z: (Math.random() - 0.5) * 0.02
-        }
-      });
-      particles.add(textMesh);
+      geometries[word].center();
+    }
+    var material = new THREE.MeshBasicMaterial({
+      color: 0xffffff
     });
+    var textMesh = getWordMesh(word, material);
+    textMesh.position.set((Math.random() - 0.5) * 5, 10 + index * 2, (Math.random() - 0.5) * 5);
+    wordMeshes.push(textMesh);
+    fallingWords.push({
+      mesh: textMesh,
+      speed: 0.05 + Math.random() * 0.05,
+      rotationSpeed: {
+        x: (Math.random() - 0.5) * 0.02,
+        y: (Math.random() - 0.5) * 0.02,
+        z: (Math.random() - 0.5) * 0.02
+      }
+    });
+    particles.add(textMesh);
   });
 }
 function getWordMesh(word, material) {
@@ -49107,6 +49112,20 @@ function cleanUpScene() {
   wordPool = [];
 }
 window.addEventListener('beforeunload', cleanUpScene);
+function debounce(func, wait) {
+  var timeout;
+  return function () {
+    var _this = this;
+    for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+      args[_key] = arguments[_key];
+    }
+    clearTimeout(timeout);
+    timeout = setTimeout(function () {
+      return func.apply(_this, args);
+    }, wait);
+  };
+}
+var debouncedAddNewLyrics = debounce(addNewLyrics, 300);
 },{"textalive-app-api":"../node_modules/textalive-app-api/dist/index.es.js","three":"../node_modules/three/build/three.module.js","three/examples/jsm/loaders/FontLoader.js":"../node_modules/three/examples/jsm/loaders/FontLoader.js","three/examples/jsm/geometries/TextGeometry.js":"../node_modules/three/examples/jsm/geometries/TextGeometry.js","three/examples/jsm/controls/OrbitControls.js":"../node_modules/three/examples/jsm/controls/OrbitControls.js"}],"../node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
@@ -49132,7 +49151,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "11524" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "8386" + '/');
   ws.onmessage = function (event) {
     checkedAssets = {};
     assetsToAccept = [];
