@@ -48858,6 +48858,7 @@ function initializeControls() {
   playBtn.addEventListener("click", play);
   pauseBtn.addEventListener("click", pause);
   volumeSlider.addEventListener("input", changeVolume);
+  volumeSlider.addEventListener("change", changeVolume);
   hamburgerMenu.addEventListener("click", function () {
     controlsContainer.classList.toggle("hidden");
   });
@@ -48954,7 +48955,8 @@ function updateConfetti() {
 }
 function changeVolume() {
   var volume = document.getElementById("volumeSlider").value / 100;
-  player.volume = volume;
+  player.volume = volume * 100;
+  console.log(player.volume);
 }
 function initThree() {
   scene = new THREE.Scene();
@@ -49151,7 +49153,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "8386" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "12469" + '/');
   ws.onmessage = function (event) {
     checkedAssets = {};
     assetsToAccept = [];

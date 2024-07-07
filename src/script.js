@@ -85,6 +85,7 @@ function initializeControls() {
     playBtn.addEventListener("click", play);
     pauseBtn.addEventListener("click", pause);
     volumeSlider.addEventListener("input", changeVolume);
+    volumeSlider.addEventListener("change", changeVolume); 
     hamburgerMenu.addEventListener("click", () => {
         controlsContainer.classList.toggle("hidden");
     });
@@ -206,7 +207,8 @@ function updateConfetti() {
 
 function changeVolume() {
     const volume = document.getElementById("volumeSlider").value / 100;
-    player.volume = volume;
+    player.volume = volume * 100;
+    console.log(player.volume);
 }
 
 function initThree() {
