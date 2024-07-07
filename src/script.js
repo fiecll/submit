@@ -74,7 +74,7 @@ function preloadFont() {
 preloadFont();
 
 function initializeControls() {
-    const playBtn = document.getElementById("playBtn");
+    const playBtn = document.getElementById("playBtn"); 
     const pauseBtn = document.getElementById("pauseBtn");
     const explodeBtn = document.getElementById("explodeBtn");
     const volumeSlider = document.getElementById("volumeSlider");
@@ -85,7 +85,6 @@ function initializeControls() {
     playBtn.addEventListener("click", play);
     pauseBtn.addEventListener("click", pause);
     volumeSlider.addEventListener("input", changeVolume);
-    volumeSlider.addEventListener("change", changeVolume); 
     hamburgerMenu.addEventListener("click", () => {
         controlsContainer.classList.toggle("hidden");
     });
@@ -101,6 +100,13 @@ function initializeControls() {
         }
     });
     explodeBtn.addEventListener("click", explodeText);
+
+    // スタートボタンのイベントリスナーを追加
+    const startButton = document.getElementById("startButton");
+    startButton.addEventListener("click", () => {
+        document.getElementById("startScreen").classList.add("hidden");
+        document.getElementById("mainApp").classList.remove("hidden");
+    });
 }
 
 function play() {
@@ -114,6 +120,13 @@ function pause() {
 function seek() {
     const seekbar = document.getElementById("seekbar");
     player.requestMediaSeek(seekbar.value);
+}
+
+function changeVolume() {
+    const volumeSlider = document.getElementById("volumeSlider");
+    const volume = volumeSlider.value / 100;
+    player.volume = volume * 100;
+    console.log("Player media element volume:", player.mediaElement.volume); // デバッグ用のログ
 }
 
 function explodeText() {
@@ -205,12 +218,6 @@ function updateConfetti() {
     confettiSystem.geometry.attributes.position.needsUpdate = true;
 }
 
-function changeVolume() {
-    const volume = document.getElementById("volumeSlider").value / 100;
-    player.volume = volume * 100;
-    console.log(player.volume);
-}
-
 function initThree() {
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -245,6 +252,16 @@ function initThree() {
 
     particles = new THREE.Group();
     scene.add(particles);
+
+    const floorGeometry = new THREE.PlaneGeometry(10,10);
+    const floorMaterial = new THREE.MeshBasicMaterial({color: 0xffff , side: THREE.DoubleSide});
+    const floor = new THREE.Mesh(floorGeometry,floorMaterial);
+    floor.rotation.x  = -Math.PI /2;
+    floor.rotation.y  = 0;
+    scene.add(floor);
+
+    const axesHelper = new THREE.AxesHelper(5);
+    scene.add(axesHelper);
 
     animate();
 
@@ -331,7 +348,7 @@ function updateFallingWords() {
         word.mesh.rotation.y += word.rotationSpeed.y;
         word.mesh.rotation.z += word.rotationSpeed.z;
 
-        if (word.mesh.position.y < -5) {
+        if (word.mesh.position.y < 0) {
             particles.remove(word.mesh);
             fallingWords.splice(i, 1);
             releaseWordMesh(word.mesh);
