@@ -48784,29 +48784,106 @@ var _TextGeometry = require("three/examples/jsm/geometries/TextGeometry.js");
 var _OrbitControls = require("three/examples/jsm/controls/OrbitControls.js");
 function _getRequireWildcardCache(e) { if ("function" != typeof WeakMap) return null; var r = new WeakMap(), t = new WeakMap(); return (_getRequireWildcardCache = function (e) { return e ? t : r; })(e); }
 function _interopRequireWildcard(e, r) { if (!r && e && e.__esModule) return e; if (null === e || "object" != typeof e && "function" != typeof e) return { default: e }; var t = _getRequireWildcardCache(r); if (t && t.has(e)) return t.get(e); var n = { __proto__: null }, a = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var u in e) if ("default" !== u && {}.hasOwnProperty.call(e, u)) { var i = a ? Object.getOwnPropertyDescriptor(e, u) : null; i && (i.get || i.set) ? Object.defineProperty(n, u, i) : n[u] = e[u]; } return n.default = e, t && t.set(e, n), n; }
-var particles;
+var particles; //テキストパーティクル
 var scene, camera, renderer, controls;
 var currentLyrics = "";
-var confettiSystem;
+var confettiSystem; //花吹雪
 var wordMeshes = [];
-var fallingWords = [];
+var wordTrails = [];
+var MAX_TRAIL_LENGTH = 100; // 軌跡の最大長さを増やす
 var lastRenderTime = 0;
 var geometries = {};
 var wordPool = [];
 var cachedFont = null;
+var isSphericalMode = false;
+var selectedSongUrl = "";
+var selectedSongKey = "";
 var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+var startButton = document.getElementById("startButton");
+var songSelect = document.getElementById("songSelect");
+var overlay = document.querySelector("#overlay");
+overlay.className = "disabled";
+startButton.addEventListener("click", function () {
+  selectedSongUrl = songSelect.value;
+  document.getElementById("startScreen").classList.add("hidden");
+  document.getElementById("mainApp").classList.remove("hidden");
+  overlay.className = "abled";
+  player.createFromSongUrl(selectedSongUrl);
+});
+var songOptions = {
+  hZ35: {
+    url: "https://piapro.jp/t/hZ35/20240130103028",
+    video: {
+      beatId: 4592293,
+      chordId: 2727635,
+      repetitiveSegmentId: 2824326,
+      lyricId: 59415,
+      lyricDiffId: 13962
+    }
+  },
+  "--OD": {
+    url: "https://piapro.jp/t/--OD/20240202150903",
+    video: {
+      beatId: 4592296,
+      chordId: 2727636,
+      repetitiveSegmentId: 2824327,
+      lyricId: 59416,
+      lyricDiffId: 13963
+    }
+  },
+  XiaI: {
+    url: "https://piapro.jp/t/XiaI/20240201203346",
+    video: {
+      beatId: 4592297,
+      chordId: 2727637,
+      repetitiveSegmentId: 2824328,
+      lyricId: 59417,
+      lyricDiffId: 13964
+    }
+  },
+  Rejk: {
+    url: "https://piapro.jp/t/Rejk/20240202164429",
+    video: {
+      beatId: 4592298,
+      chordId: 2727638,
+      repetitiveSegmentId: 2824329,
+      lyricId: 59418,
+      lyricDiffId: 13965
+    }
+  },
+  ELIC: {
+    url: "https://piapro.jp/t/ELIC/20240130010349",
+    video: {
+      beatId: 4592299,
+      chordId: 2727639,
+      repetitiveSegmentId: 2824330,
+      lyricId: 59419,
+      lyricDiffId: 13966
+    }
+  },
+  xEA7: {
+    url: "https://piapro.jp/t/xEA7/20240202002556",
+    video: {
+      beatId: 4592300,
+      chordId: 2727640,
+      repetitiveSegmentId: 2824331,
+      lyricId: 59420,
+      lyricDiffId: 13967
+    }
+  }
+};
 var player = new _textaliveAppApi.Player({
   app: {
-    token: "GfeiLX99kNC1YEyp",
-    valenceArousalEnabled: true,
-    vocalAmplitudeEnabled: true
+    token: "GfeiLX99kNC1YEyp"
   },
+  valenceArousalEnabled: true,
+  vocalAmplitudeEnabled: true,
   mediaElement: document.createElement("audio")
 });
 player.addListener({
   onAppReady: function onAppReady(app) {
     if (!app.managed) {
-      player.createFromSongUrl("https://piapro.jp/t/YW_d/20210206123357");
+      //player.createFromSongUrl("https://piapro.jp/t/YW_d/20210206123357");
     }
     initializeControls();
   },
@@ -48818,14 +48895,17 @@ player.addListener({
   },
   onTimerReady: function onTimerReady() {
     initThree();
+    overlay.className = "disabled";
   },
   onTimeUpdate: function onTimeUpdate(position) {
     if (player.video) {
       var now = player.timer.position;
       var phrase = player.video.findChar(now);
+      var nowphrase = player.video.findPhrase(now);
       if (phrase && phrase.text !== currentLyrics) {
         currentLyrics = phrase.text;
         debouncedAddNewLyrics();
+        updateCurrentLyricsDisplay(nowphrase.text);
       }
       changeTextColor();
       document.getElementById("seekbar").value = now;
@@ -48838,6 +48918,17 @@ player.addListener({
   onPause: function onPause() {
     document.getElementById("playBtn").disabled = false;
     document.getElementById("pauseBtn").disabled = true;
+  }
+});
+startButton.addEventListener("click", function () {
+  selectedSongKey = songSelect.value;
+  var selectedSong = songOptions[selectedSongKey];
+  if (selectedSong) {
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("mainApp").classList.remove("hidden");
+    player.createFromSongUrl(selectedSong.url, {
+      video: selectedSong.video
+    });
   }
 });
 function preloadFont() {
@@ -48872,13 +48963,19 @@ function initializeControls() {
     }
   });
   explodeBtn.addEventListener("click", explodeText);
-
-  // スタートボタンのイベントリスナーを追加
   var startButton = document.getElementById("startButton");
   startButton.addEventListener("click", function () {
     document.getElementById("startScreen").classList.add("hidden");
     document.getElementById("mainApp").classList.remove("hidden");
   });
+  var modeToggleBtn = document.createElement('button');
+  modeToggleBtn.textContent = '球面モード切替';
+  modeToggleBtn.addEventListener('click', toggleSphericalMode);
+  document.getElementById('controls').appendChild(modeToggleBtn);
+}
+function toggleSphericalMode() {
+  isSphericalMode = !isSphericalMode;
+  clearExistingLyrics();
 }
 function play() {
   player.requestPlay();
@@ -48894,7 +48991,11 @@ function changeVolume() {
   var volumeSlider = document.getElementById("volumeSlider");
   var volume = volumeSlider.value / 100;
   player.volume = volume * 100;
-  console.log("Player media element volume:", player.mediaElement.volume); // デバッグ用のログ
+  console.log("Player media element volume:", player.mediaElement.volume);
+}
+function updateCurrentLyricsDisplay(lyrics) {
+  var lyricsElement = document.getElementById('currentLyrics');
+  lyricsElement.textContent = lyrics;
 }
 function explodeText() {
   wordMeshes.forEach(function (mesh) {
@@ -48902,6 +49003,13 @@ function explodeText() {
     mesh.position.add(direction);
   });
   createConfetti();
+}
+function clearExistingLyrics() {
+  wordTrails.forEach(function (word) {
+    particles.remove(word.mesh);
+    scene.remove(word.trail);
+  });
+  wordTrails = [];
 }
 function createConfetti() {
   var confettiCount = isMobile ? 50 : 100;
@@ -48968,6 +49076,8 @@ function updateConfetti() {
 function initThree() {
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  // カメラの初期位置を調整
+  camera.position.set(0, 0, 30);
   renderer = new THREE.WebGLRenderer({
     antialias: false,
     powerPreference: "low-power"
@@ -48984,6 +49094,9 @@ function initThree() {
     texture.minFilter = THREE.LinearFilter;
     scene.background = texture;
   });
+
+  // 背景を黒に設定
+  scene.background = new THREE.Color(0x000000);
   camera.position.z = 5;
   controls = new _OrbitControls.OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
@@ -48993,23 +49106,90 @@ function initThree() {
   controls.maxDistance = 100;
   particles = new THREE.Group();
   scene.add(particles);
-  var floorGeometry = new THREE.PlaneGeometry(10, 10);
-  var floorMaterial = new THREE.MeshBasicMaterial({
-    color: 0xffff,
-    side: THREE.DoubleSide
-  });
-  var floor = new THREE.Mesh(floorGeometry, floorMaterial);
-  floor.rotation.x = -Math.PI / 2;
-  floor.rotation.y = 0;
-  scene.add(floor);
-  var axesHelper = new THREE.AxesHelper(5);
-  scene.add(axesHelper);
+
+  // // 床を追加
+  // const floorGeometry = new THREE.PlaneGeometry(10, 10);
+  // const floorMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+  // const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+  // floor.rotation.x = -Math.PI / 2;
+  // floor.position.y = -5;
+  // scene.add(floor);
+
+  // // 格子の座標軸を追加
+  // const gridSize = 10;
+  // const gridDivisions = 10;
+  // const gridHelperXZ = new THREE.GridHelper(gridSize, gridDivisions, 0x00ff00, 0x004400);
+  // gridHelperXZ.position.y = -5;
+  // scene.add(gridHelperXZ);
+
+  // const gridHelperXY = new THREE.GridHelper(gridSize, gridDivisions, 0x00ff00, 0x004400);
+  // gridHelperXY.rotation.x = Math.PI / 2;
+  // gridHelperXY.position.z = -5;
+  // scene.add(gridHelperXY);
+
+  // const gridHelperYZ = new THREE.GridHelper(gridSize, gridDivisions, 0x00ff00, 0x004400);
+  // gridHelperYZ.rotation.z = Math.PI / 2;
+  // gridHelperYZ.position.x = -5;
+  // scene.add(gridHelperYZ);
+
+  // プラネタリウムのような球体を作成
+  createPlanetariumSphere();
   animate();
   var resizeTimeout;
   window.addEventListener('resize', function () {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(onWindowResize, 100);
   });
+}
+function createPlanetariumSphere() {
+  var radius = 50;
+  var segments = 64;
+  var rings = 64;
+
+  // 球体のジオメトリを作成
+  var sphereGeometry = new THREE.SphereGeometry(radius, segments, rings);
+
+  // 星のテクスチャを作成
+  var starTexture = createStarTexture();
+
+  // 球体のマテリアルを作成
+  var sphereMaterial = new THREE.MeshBasicMaterial({
+    map: starTexture,
+    side: THREE.BackSide,
+    // 内側から見えるようにする
+    transparent: true,
+    opacity: 0.8
+  });
+
+  // 球体メッシュを作成し、シーンに追加
+  var sphereMesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
+  scene.add(sphereMesh);
+}
+function createStarTexture() {
+  var size = 1024;
+  var canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  var ctx = canvas.getContext('2d');
+
+  // 背景を黒に設定
+  ctx.fillStyle = 'black';
+  ctx.fillRect(0, 0, size, size);
+
+  // ランダムな星を描画
+  for (var i = 0; i < 1000; i++) {
+    var radius = Math.random() * 2;
+    var x = Math.random() * size;
+    var y = Math.random() * size;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, 2 * Math.PI);
+    ctx.fillStyle = 'white';
+    ctx.fill();
+  }
+
+  // テクスチャを作成
+  var texture = new THREE.CanvasTexture(canvas);
+  return texture;
 }
 function addNewLyrics() {
   if (!currentLyrics || !cachedFont) return;
@@ -49019,8 +49199,8 @@ function addNewLyrics() {
     if (!geometries[word]) {
       geometries[word] = new _TextGeometry.TextGeometry(word, {
         font: cachedFont,
-        size: 0.4,
-        height: 0.1
+        size: 2,
+        height: 0.5
       });
       geometries[word].center();
     }
@@ -49028,19 +49208,50 @@ function addNewLyrics() {
       color: 0xffffff
     });
     var textMesh = getWordMesh(word, material);
-    textMesh.position.set((Math.random() - 0.5) * 5, 10 + index * 2, (Math.random() - 0.5) * 5);
-    wordMeshes.push(textMesh);
-    fallingWords.push({
+    if (isSphericalMode) {
+      var sphericalPosition = getRandomSphericalPosition(95); // 球体の半径より少し小さい値
+      textMesh.position.copy(sphericalPosition);
+      textMesh.lookAt(new THREE.Vector3(0, 0, 0)); // 中心を向くように回転
+    } else {
+      textMesh.position.set((Math.random() - 0.5) * 40, 20 + index * 5, (Math.random() - 0.5) * 40);
+    }
+    var trailColor = new THREE.Color().setHSL(Math.random(), 1, 0.5);
+    var trail = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({
+      color: trailColor,
+      transparent: true,
+      linewidth: 3
+    }));
+    trail.geometry.setFromPoints([textMesh.position.clone()]);
+    scene.add(trail);
+    wordTrails.push({
       mesh: textMesh,
+      trail: trail,
+      positions: [textMesh.position.clone()],
+      opacities: [1],
       speed: 0.05 + Math.random() * 0.05,
       rotationSpeed: {
         x: (Math.random() - 0.5) * 0.02,
         y: (Math.random() - 0.5) * 0.02,
         z: (Math.random() - 0.5) * 0.02
-      }
+      },
+      sphericalPosition: isSphericalMode ? getRandomSphericalCoordinates() : null
     });
     particles.add(textMesh);
   });
+}
+function getRandomSphericalPosition(radius) {
+  var theta = Math.random() * Math.PI * 2; // 0 to 2π
+  var phi = Math.acos(2 * Math.random() - 1); // 0 to π
+  var x = radius * Math.sin(phi) * Math.cos(theta);
+  var y = radius * Math.sin(phi) * Math.sin(theta);
+  var z = radius * Math.cos(phi);
+  return new THREE.Vector3(x, y, z);
+}
+function getRandomSphericalCoordinates() {
+  return {
+    theta: Math.random() * Math.PI * 2,
+    phi: Math.acos(2 * Math.random() - 1)
+  };
 }
 function getWordMesh(word, material) {
   if (wordPool.length > 0) {
@@ -49059,24 +49270,93 @@ function releaseWordMesh(mesh) {
   }
 }
 function changeTextColor() {
-  var valence = player.getValenceArousal(player.timer.position);
-  var arousal = player.getValenceArousal(player.timer.position);
+  var position = player.timer.position;
+  if (!position) {
+    console.error("プレイヤーの位置が無効です。");
+    return;
+  }
+
+  // 感情値を取得
+  var valenceArousal = player.getValenceArousal(position);
+  if (!valenceArousal) {
+    console.error("感情値の取得に失敗しました。");
+    return;
+  }
+  var valence = valenceArousal.v;
+  var arousal = valenceArousal.a;
+  if (valence === undefined || arousal === undefined) {
+    console.error("感情値が未定義です。");
+    return;
+  }
+  console.log("Valence: ".concat(valence, ", Arousal: ").concat(arousal));
   var color = new THREE.Color();
+  console.log(color);
   color.setHSL((valence + 1) / 2, 1, (arousal + 1) / 2);
-  wordMeshes.forEach(function (mesh) {
-    mesh.material.color.set(color);
-  });
+  // wordMeshes.forEach(mesh => {
+  //     mesh.material.color.set(color);
+  // });
+  return color; // 色を返す
 }
 function updateFallingWords() {
-  for (var i = fallingWords.length - 1; i >= 0; i--) {
-    var word = fallingWords[i];
-    word.mesh.position.y -= word.speed;
-    word.mesh.rotation.x += word.rotationSpeed.x;
-    word.mesh.rotation.y += word.rotationSpeed.y;
-    word.mesh.rotation.z += word.rotationSpeed.z;
-    if (word.mesh.position.y < 0) {
+  var currentColor = changeTextColor(); // 現在の感情値に基づく色を取得
+
+  for (var i = wordTrails.length - 1; i >= 0; i--) {
+    var word = wordTrails[i];
+
+    // 文字の色を更新
+    word.mesh.material.color.copy(currentColor);
+    if (isSphericalMode) {
+      // 球面上を移動
+      word.sphericalPosition.theta += 0.005;
+      word.sphericalPosition.phi += 0.002;
+      var newPosition = new THREE.Vector3(95 * Math.sin(word.sphericalPosition.phi) * Math.cos(word.sphericalPosition.theta), 95 * Math.sin(word.sphericalPosition.phi) * Math.sin(word.sphericalPosition.theta), 95 * Math.cos(word.sphericalPosition.phi));
+      word.mesh.position.copy(newPosition);
+      word.mesh.lookAt(new THREE.Vector3(0, 0, 0));
+    } else {
+      // 通常の落下モード
+      word.mesh.position.y -= word.speed;
+      word.mesh.rotation.x += word.rotationSpeed.x;
+      word.mesh.rotation.y += word.rotationSpeed.y;
+      word.mesh.rotation.z += word.rotationSpeed.z;
+    }
+
+    // 軌跡を更新
+    word.positions.push(word.mesh.position.clone());
+    word.opacities.push(1);
+    if (word.positions.length > MAX_TRAIL_LENGTH) {
+      word.positions.shift();
+      word.opacities.shift();
+    }
+
+    // 不透明度を徐々に下げる
+    for (var j = 0; j < word.opacities.length; j++) {
+      word.opacities[j] *= 0.99;
+    }
+
+    // 軌跡の geometry と material を更新
+    var geometry = new THREE.BufferGeometry().setFromPoints(word.positions);
+    var material = word.trail.material.clone();
+    material.color.copy(currentColor); // 軌跡の色も更新
+    material.opacity = 1;
+    var colors = new Float32Array(word.positions.length * 3);
+    for (var _j = 0; _j < word.positions.length; _j++) {
+      var color = new THREE.Color(material.color);
+      color.multiplyScalar(word.opacities[_j]);
+      colors[_j * 3] = color.r;
+      colors[_j * 3 + 1] = color.g;
+      colors[_j * 3 + 2] = color.b;
+    }
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    material.vertexColors = true;
+    scene.remove(word.trail);
+    word.trail = new THREE.Line(geometry, material);
+    scene.add(word.trail);
+
+    // 球面モードでは削除条件を変更
+    if (!isSphericalMode && word.mesh.position.y < -50 || isSphericalMode && word.opacities[0] < 0.01) {
       particles.remove(word.mesh);
-      fallingWords.splice(i, 1);
+      scene.remove(word.trail);
+      wordTrails.splice(i, 1);
       releaseWordMesh(word.mesh);
     }
   }
@@ -49115,7 +49395,12 @@ function cleanUpScene() {
     disposeMesh(mesh);
   });
   wordMeshes = [];
-  fallingWords = [];
+  wordTrails.forEach(function (word) {
+    scene.remove(word.trail);
+    word.trail.geometry.dispose();
+    word.trail.material.dispose();
+  });
+  wordTrails = [];
   if (confettiSystem) {
     scene.remove(confettiSystem);
     confettiSystem.geometry.dispose();
@@ -49171,7 +49456,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "12599" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "1804" + '/');
   ws.onmessage = function (event) {
     checkedAssets = {};
     assetsToAccept = [];

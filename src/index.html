@@ -10,7 +10,19 @@
 <body>
     <div id="startScreen">
         <h1>3D Lyric Particle App</h1>
+        <label for="songSelect">楽曲を選択してください:</label>
+        <select id="songSelect">
+            <option value="hZ35">SUPERHERO</option>
+            <option value="--OD">いつか君と話したミライは</option>
+            <option value="XiaI">フューチャーノーツ</option>
+            <option value="Rejk">未来交響曲</option>
+            <option value="ELIC">リアリティ</option>
+            <option value="xEA7">The Marks</option>
+        </select>
         <button id="startButton">スタート</button>
+    </div>
+    <div id="overlay">
+        <p><span class="far">&#xf254;</span>now loading...</p>
     </div>
     <div id="mainApp" class="hidden">
         <div id="container"></div>
@@ -30,15 +42,9 @@
                 <label for="volumeSlider">音量:</label>
                 <input type="range" id="volumeSlider" min="0" max="100" value="100">
             </div>
-            <div id="movementControl">
-                <button id="moveUpBtn">上</button>
-                <button id="moveDownBtn">下</button>
-                <button id="moveLeftBtn">左</button>
-                <button id="moveRightBtn">右</button>
-                <button id="resetBtn">リセット</button>
-            </div>
         </div>
         <div id="info"></div>
+        <div id="currentLyrics" class="lyrics"></div>
     </div>
     <script src="script.js"></script>
 </body>
