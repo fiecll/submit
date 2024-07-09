@@ -48963,6 +48963,7 @@ function initializeControls() {
   playBtn.addEventListener("click", play);
   pauseBtn.addEventListener("click", pause);
   volumeSlider.addEventListener("input", changeVolume);
+  volumeSlider.addEventListener("change", changeVolume);
   hamburgerMenu.addEventListener("click", function () {
     controlsContainer.classList.toggle("hidden");
   });
@@ -48999,8 +49000,6 @@ function changeVolume() {
   //console.log("Player media element volume:", player.mediaElement.volume);
 }
 function updateCurrentLyricsDisplay(lyrics) {
-  var now = player.timer.position;
-  var currentPhrase = player.video.findPhrase(now);
   lyricsElement.innerHTML = "";
   var words = lyrics.split(' ');
   words.forEach(function (word, index) {
@@ -49129,6 +49128,8 @@ function updateFireworks() {
     firework.geometry.attributes.position.needsUpdate = true;
     if (velocities[1] < -2) {
       fireworks.splice(index, 1);
+      firework.geometry.dispose();
+      firework.material.dispose();
     }
   });
 }
@@ -49553,7 +49554,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "7472" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "9071" + '/');
   ws.onmessage = function (event) {
     checkedAssets = {};
     assetsToAccept = [];

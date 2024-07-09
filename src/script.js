@@ -187,6 +187,7 @@ function initializeControls() {
     playBtn.addEventListener("click", play);
     pauseBtn.addEventListener("click", pause);
     volumeSlider.addEventListener("input", changeVolume);
+    volumeSlider.addEventListener("change", changeVolume);
     hamburgerMenu.addEventListener("click", () => {
         controlsContainer.classList.toggle("hidden");
     });
@@ -233,15 +234,13 @@ function changeVolume() {
 }
 
 function updateCurrentLyricsDisplay(lyrics) {
-    const now = player.timer.position;
-    const currentPhrase = player.video.findPhrase(now);
     lyricsElement.innerHTML = "";
     const words = lyrics.split(' ');
 
     words.forEach((word, index) => {
         const span = document.createElement('span');
-        span.textContent = word + " "; 
-        span.style.animationDelay = `${index * 0.1}s`; 
+        span.textContent = word + " ";
+        span.style.animationDelay = `${index * 0.1}s`;
 
         const color = new THREE.Color();
         color.setHSL(Math.random(), 1.0, 0.5); // ランダムな色を設定
@@ -252,6 +251,7 @@ function updateCurrentLyricsDisplay(lyrics) {
 
     lyricsElement.classList.add('show');
 }
+
 
 
 function explodeText() {
@@ -377,7 +377,6 @@ function createFirework(position, scale) {
     }, 2500);
 }
 
-
 function updateFireworks() {
     fireworks.forEach((firework, index) => {
         const positions = firework.geometry.attributes.position.array;
@@ -399,6 +398,8 @@ function updateFireworks() {
 
         if (velocities[1] < -2) {
             fireworks.splice(index, 1);
+            firework.geometry.dispose();
+            firework.material.dispose();
         }
     });
 }

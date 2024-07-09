@@ -337,36 +337,17 @@ body {
   padding: 10px;
   border-radius: 5px;
   font-size: 2em;
-  opacity: 0; 
-  transition: opacity 1s ease-in-out; 
+  opacity: 0;
+  transition: opacity 1s ease-in-out;
 }
 
 #currentLyrics.show {
-  opacity: 1; /* 表示時の透明度 */
-}
-
-#currentLyrics span {
-  opacity: 0.7;
-  transition: opacity 0.1s ease;
-}
-
-#currentLyrics span.current {
   opacity: 1;
-  font-weight: bold;
 }
 
 @keyframes fadeIn {
   0% { opacity: 0; transform: translateY(20px); }
   100% { opacity: 1; transform: translateY(0); }
-}
-
-#currentLyrics span {
-  display: inline-block;
-  opacity: 0;
-}
-
-#currentLyrics.show span {
-  animation: fadeIn 0.5s forwards;
 }
 
 #currentLyrics span {
@@ -387,4 +368,11 @@ body {
 #currentLyrics span:nth-child(3) {
   animation-delay: 0.2s;
 }
+#currentLyrics span:nth-child(4) {
+  animation-delay: 0.3s;
+}
+#currentLyrics span:nth-child(5) {
+  animation-delay: 0.4s;
+}
+
 
