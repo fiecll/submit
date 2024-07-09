@@ -240,10 +240,9 @@ function updateCurrentLyricsDisplay(lyrics) {
 
     words.forEach((word, index) => {
         const span = document.createElement('span');
-        span.textContent = word + " "; // 各単語の後にスペースを追加
+        span.textContent = word + " "; 
         span.style.animationDelay = `${index * 0.1}s`; 
 
-        // 単語ごとに異なる色を設定
         const color = new THREE.Color();
         color.setHSL(Math.random(), 1.0, 0.5); // ランダムな色を設定
         span.style.color = `#${color.getHexString()}`;
@@ -277,7 +276,7 @@ function explodeSelectedText(mesh) {
     mesh.position.add(direction);
     particles.remove(mesh);
     scene.remove(mesh);
-    createFirework(mesh.position, mesh.scale.x*100); // Meshのスケールを渡す
+    createFirework(mesh.position, mesh.scale.x*50); 
 }
 
 function clearExistingLyrics() {
@@ -339,7 +338,7 @@ function createConfetti() {
 }
 
 function createFirework(position, scale) {
-    const fireworkCount = Math.floor(150 * scale); // スケールに応じて花火のパーティクル数を調整
+    const fireworkCount = Math.floor((isMobile ? 50 : 150) * scale); // スケールに応じて花火のパーティクル数を調整
     const fireworkGeometry = new THREE.BufferGeometry();
     const positions = new Float32Array(fireworkCount * 3);
     const colors = new Float32Array(fireworkCount * 3);

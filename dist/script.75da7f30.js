@@ -49005,10 +49005,8 @@ function updateCurrentLyricsDisplay(lyrics) {
   var words = lyrics.split(' ');
   words.forEach(function (word, index) {
     var span = document.createElement('span');
-    span.textContent = word + " "; // 各単語の後にスペースを追加
+    span.textContent = word + " ";
     span.style.animationDelay = "".concat(index * 0.1, "s");
-
-    // 単語ごとに異なる色を設定
     var color = new THREE.Color();
     color.setHSL(Math.random(), 1.0, 0.5); // ランダムな色を設定
     span.style.color = "#".concat(color.getHexString());
@@ -49028,7 +49026,7 @@ function explodeSelectedText(mesh) {
   mesh.position.add(direction);
   particles.remove(mesh);
   scene.remove(mesh);
-  createFirework(mesh.position, mesh.scale.x * 100); // Meshのスケールを渡す
+  createFirework(mesh.position, mesh.scale.x * 50);
 }
 function clearExistingLyrics() {
   wordTrails.forEach(function (word) {
@@ -49081,7 +49079,7 @@ function createConfetti() {
   }, 3000);
 }
 function createFirework(position, scale) {
-  var fireworkCount = Math.floor(150 * scale); // スケールに応じて花火のパーティクル数を調整
+  var fireworkCount = Math.floor((isMobile ? 50 : 150) * scale); // スケールに応じて花火のパーティクル数を調整
   var fireworkGeometry = new THREE.BufferGeometry();
   var positions = new Float32Array(fireworkCount * 3);
   var colors = new Float32Array(fireworkCount * 3);
@@ -49555,7 +49553,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "1857" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "7472" + '/');
   ws.onmessage = function (event) {
     checkedAssets = {};
     assetsToAccept = [];
