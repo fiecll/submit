@@ -4,28 +4,32 @@ import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-let particles;   //テキストパーティクル
+let particles;   
 let scene, camera, renderer, controls;
 let currentLyrics = "";
-let confettiSystem; //花吹雪
+let currentphrase = "";
+let confettiSystem; 
 let wordMeshes = [];
 let wordTrails = [];
+let shootingStars = [];
+let fireworks = [];
 
-const MAX_TRAIL_LENGTH = 100; // 軌跡の最大長さを増やす
-let lastRenderTime = 0;
+const MAX_TRAIL_LENGTH = 100; 
 let geometries = {};
 let wordPool = [];
 let cachedFont = null;
 let isSphericalMode = false;
 let selectedSongUrl = "";
 let selectedSongKey = "";
-
+let raycaster = new THREE.Raycaster();
+let mouse = new THREE.Vector2();
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
 const startButton = document.getElementById("startButton");
 const songSelect = document.getElementById("songSelect");
 const overlay = document.querySelector("#overlay");
+const lyricsElement = document.getElementById('currentLyrics');
 
 overlay.className = "disabled";
 
@@ -111,15 +115,11 @@ const player = new Player({
 
 player.addListener({
     onAppReady: (app) => {
-        if (!app.managed) {
-            //player.createFromSongUrl("https://piapro.jp/t/YW_d/20210206123357");
-        }
         initializeControls();
     },
     onVideoReady: (v) => {
         document.getElementById("playBtn").disabled = false;
         document.getElementById("pauseBtn").disabled = false;
-        document.getElementById("explodeBtn").disabled = false;
         document.getElementById("seekbar").max = player.video.duration;
     },
     onTimerReady() {
@@ -129,11 +129,16 @@ player.addListener({
     onTimeUpdate: (position) => {
         if (player.video) {
             const now = player.timer.position;
-            const phrase = player.video.findChar(now);
+            const phrase = player.video.findWord(now);
             const nowphrase = player.video.findPhrase(now);
             if (phrase && phrase.text !== currentLyrics) {
                 currentLyrics = phrase.text;
+                console.log(currentLyrics);
                 debouncedAddNewLyrics();
+            }
+            if (nowphrase && nowphrase.text !==currentphrase){
+                currentphrase = nowphrase.text;
+                //console.log(currentphrase);
                 updateCurrentLyricsDisplay(nowphrase.text); 
             }
             changeTextColor();
@@ -174,7 +179,6 @@ preloadFont();
 function initializeControls() {
     const playBtn = document.getElementById("playBtn");
     const pauseBtn = document.getElementById("pauseBtn");
-    const explodeBtn = document.getElementById("explodeBtn");
     const volumeSlider = document.getElementById("volumeSlider");
     const hamburgerMenu = document.getElementById("hamburger-menu");
     const controlsContainer = document.getElementById("controls");
@@ -189,15 +193,7 @@ function initializeControls() {
     seekbar.addEventListener("input", seek);
 
     let touchStartTime;
-    explodeBtn.addEventListener("touchstart", () => {
-        touchStartTime = Date.now();
-    });
-    explodeBtn.addEventListener("touchend", () => {
-        if (Date.now() - touchStartTime < 300) {
-            explodeText();
-        }
-    });
-    explodeBtn.addEventListener("click", explodeText);
+
 
     const startButton = document.getElementById("startButton");
     startButton.addEventListener("click", () => {
@@ -233,13 +229,31 @@ function changeVolume() {
     const volumeSlider = document.getElementById("volumeSlider");
     const volume = volumeSlider.value / 100;
     player.volume = volume * 100;
-    console.log("Player media element volume:", player.mediaElement.volume);
+    //console.log("Player media element volume:", player.mediaElement.volume);
 }
 
 function updateCurrentLyricsDisplay(lyrics) {
-    const lyricsElement = document.getElementById('currentLyrics');
-    lyricsElement.textContent = lyrics;
+    const now = player.timer.position;
+    const currentPhrase = player.video.findPhrase(now);
+    lyricsElement.innerHTML = "";
+    const words = lyrics.split(' ');
+
+    words.forEach((word, index) => {
+        const span = document.createElement('span');
+        span.textContent = word + " "; // 各単語の後にスペースを追加
+        span.style.animationDelay = `${index * 0.1}s`; 
+
+        // 単語ごとに異なる色を設定
+        const color = new THREE.Color();
+        color.setHSL(Math.random(), 1.0, 0.5); // ランダムな色を設定
+        span.style.color = `#${color.getHexString()}`;
+
+        lyricsElement.appendChild(span);
+    });
+
+    lyricsElement.classList.add('show');
 }
+
 
 function explodeText() {
     wordMeshes.forEach(mesh => {
@@ -254,6 +268,17 @@ function explodeText() {
     createConfetti();
 }
 
+function explodeSelectedText(mesh) {
+    const direction = new THREE.Vector3(
+        (Math.random() - 0.5) * 0.5,
+        (Math.random() - 0.5) * 0.5,
+        (Math.random() - 0.5) * 0.5
+    );
+    mesh.position.add(direction);
+    particles.remove(mesh);
+    scene.remove(mesh);
+    createFirework(mesh.position, mesh.scale.x*100); // Meshのスケールを渡す
+}
 
 function clearExistingLyrics() {
     wordTrails.forEach(word => {
@@ -313,6 +338,74 @@ function createConfetti() {
     }, 3000);
 }
 
+function createFirework(position, scale) {
+    const fireworkCount = Math.floor(150 * scale); // スケールに応じて花火のパーティクル数を調整
+    const fireworkGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(fireworkCount * 3);
+    const colors = new Float32Array(fireworkCount * 3);
+    const velocities = new Float32Array(fireworkCount * 3);
+    const color = new THREE.Color();
+
+    for (let i = 0; i < fireworkCount; i++) {
+        positions[i * 3] = position.x;
+        positions[i * 3 + 1] = position.y;
+        positions[i * 3 + 2] = position.z;
+
+        velocities[i * 3] = (Math.random() - 0.5) * 3 * scale; // スケールに応じて速度を調整
+        velocities[i * 3 + 1] = (Math.random() - 0.5) * 3 * scale;
+        velocities[i * 3 + 2] = (Math.random() - 0.5) * 3 * scale;
+
+        color.setHSL(Math.random(), 1.0, 0.7); // 鮮やかな色
+        colors[i * 3] = color.r;
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
+    }
+
+    fireworkGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    fireworkGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const fireworkMaterial = new THREE.PointsMaterial({ size: 0.15, vertexColors: true });
+    const fireworkSystem = new THREE.Points(fireworkGeometry, fireworkMaterial);
+    fireworkSystem.userData.velocities = velocities;
+
+    scene.add(fireworkSystem);
+    fireworks.push(fireworkSystem);
+
+    setTimeout(() => {
+        scene.remove(fireworkSystem);
+        fireworkSystem.geometry.dispose();
+        fireworkSystem.material.dispose();
+    }, 2500);
+}
+
+
+function updateFireworks() {
+    fireworks.forEach((firework, index) => {
+        const positions = firework.geometry.attributes.position.array;
+        const velocities = firework.userData.velocities;
+
+        for (let i = 0; i < positions.length; i += 3) {
+            positions[i] += velocities[i] * 0.1; 
+            positions[i + 1] += velocities[i + 1] * 0.1;
+            positions[i + 2] += velocities[i + 2] * 0.1;
+
+            velocities[i] *= 0.98; 
+            velocities[i + 1] *= 0.98;
+            velocities[i + 2] *= 0.98;
+
+            velocities[i + 1] -= 0.005; 
+        }
+
+        firework.geometry.attributes.position.needsUpdate = true;
+
+        if (velocities[1] < -2) {
+            fireworks.splice(index, 1);
+        }
+    });
+}
+
+
+
 function updateConfetti() {
     if (!confettiSystem) return;
 
@@ -342,12 +435,12 @@ function updateConfetti() {
 function initThree() {
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    // カメラの初期位置を調整
-    camera.position.set(0, 0, 30);
+    
+    camera.position.set(0, 0, 250);
 
     renderer = new THREE.WebGLRenderer({
         antialias: false,
-        powerPreference: "low-power"
+        powerPreference: "high-performance"
     });
 
     if (isMobile) {
@@ -365,48 +458,18 @@ function initThree() {
         scene.background = texture;
     });
 
-        // 背景を黒に設定
     scene.background = new THREE.Color(0x000000);
-
-    camera.position.z = 5;
 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.25;
     controls.screenSpacePanning = false;
     controls.minDistance = 1;
-    controls.maxDistance = 100;
+    controls.maxDistance = 500;
 
     particles = new THREE.Group();
     scene.add(particles);
 
-    // // 床を追加
-    // const floorGeometry = new THREE.PlaneGeometry(10, 10);
-    // const floorMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
-    // const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-    // floor.rotation.x = -Math.PI / 2;
-    // floor.position.y = -5;
-    // scene.add(floor);
-
-    // // 格子の座標軸を追加
-    // const gridSize = 10;
-    // const gridDivisions = 10;
-    // const gridHelperXZ = new THREE.GridHelper(gridSize, gridDivisions, 0x00ff00, 0x004400);
-    // gridHelperXZ.position.y = -5;
-    // scene.add(gridHelperXZ);
-
-    // const gridHelperXY = new THREE.GridHelper(gridSize, gridDivisions, 0x00ff00, 0x004400);
-    // gridHelperXY.rotation.x = Math.PI / 2;
-    // gridHelperXY.position.z = -5;
-    // scene.add(gridHelperXY);
-
-    // const gridHelperYZ = new THREE.GridHelper(gridSize, gridDivisions, 0x00ff00, 0x004400);
-    // gridHelperYZ.rotation.z = Math.PI / 2;
-    // gridHelperYZ.position.x = -5;
-    // scene.add(gridHelperYZ);
-
-    
-    // プラネタリウムのような球体を作成
     createPlanetariumSphere();
 
     animate();
@@ -416,30 +479,29 @@ function initThree() {
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(onWindowResize, 100);
     });
+
+    window.addEventListener('click', onDocumentMouseClick, false);
+    window.addEventListener('touchstart', onDocumentTouchStart, false);
 }
 
 function createPlanetariumSphere() {
-    const radius = 50;
+    const radius = 95;
     const segments = 64;
     const rings = 64;
 
-    // 球体のジオメトリを作成
     const sphereGeometry = new THREE.SphereGeometry(radius, segments, rings);
-    
-    // 星のテクスチャを作成
     const starTexture = createStarTexture();
-    
-    // 球体のマテリアルを作成
     const sphereMaterial = new THREE.MeshBasicMaterial({
         map: starTexture,
-        side: THREE.BackSide, // 内側から見えるようにする
+        side: THREE.BackSide,
         transparent: true,
         opacity: 0.8
     });
 
-    // 球体メッシュを作成し、シーンに追加
     const sphereMesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
     scene.add(sphereMesh);
+
+    addConstellations();
 }
 
 function createStarTexture() {
@@ -449,11 +511,9 @@ function createStarTexture() {
     canvas.height = size;
     const ctx = canvas.getContext('2d');
 
-    // 背景を黒に設定
     ctx.fillStyle = 'black';
     ctx.fillRect(0, 0, size, size);
 
-    // ランダムな星を描画
     for (let i = 0; i < 1000; i++) {
         const radius = Math.random() * 2;
         const x = Math.random() * size;
@@ -465,42 +525,100 @@ function createStarTexture() {
         ctx.fill();
     }
 
-    // テクスチャを作成
     const texture = new THREE.CanvasTexture(canvas);
     return texture;
+}
+
+function addConstellations() {
+    const constellations = [
+        [[-30, 40, 0], [-10, 30, 0], [10, 35, 0], [30, 20, 0]],
+        [[40, -20, 0], [20, -30, 0], [0, -40, 0], [-20, -30, 0], [-40, -20, 0]],
+        [[-50, 10, 0], [-30, 5, 0], [-10, 15, 0], [10, 5, 0], [30, 10, 0]]
+    ];
+
+    const geometry = new THREE.BufferGeometry().setFromPoints(
+        constellations.map(point => new THREE.Vector3(...point))
+    );
+    const material = new THREE.LineBasicMaterial({ color: 0xcccccc, opacity: 0.5, transparent: true });
+    const line = new THREE.Line(geometry, material);
+    scene.add(line);
+}
+
+function createShootingStar() {
+    const geometry = new THREE.BufferGeometry();
+    const material = new THREE.LineBasicMaterial({ color: 0xffffff });
+
+    const curve = new THREE.CubicBezierCurve3(
+        new THREE.Vector3(-100, Math.random() * 100 - 50, Math.random() * 100 - 50),
+        new THREE.Vector3(-33, Math.random() * 100 - 50, Math.random() * 100 - 50),
+        new THREE.Vector3(33, Math.random() * 100 - 50, Math.random() * 100 - 50),
+        new THREE.Vector3(100, Math.random() * 100 - 50, Math.random() * 100 - 50)
+    );
+
+    const points = curve.getPoints(50);
+    geometry.setFromPoints(points);
+
+    const shootingStar = new THREE.Line(geometry, material);
+    shootingStar.userData.progress = 0;
+    shootingStar.userData.speed = 0.005 + Math.random() * 0.01;
+    shootingStar.userData.curve = curve;
+
+    scene.add(shootingStar);
+    return shootingStar;
+}
+
+function updateShootingStars() {
+    for (let i = shootingStars.length - 1; i >= 0; i--) {
+        const star = shootingStars[i];
+        star.userData.progress += star.userData.speed;
+        if (star.userData.progress > 1) {
+            scene.remove(star);
+            star.geometry.dispose();
+            star.material.dispose();
+            shootingStars.splice(i, 1);
+        } else {
+            const point = star.geometry.attributes.position;
+            const newPos = star.userData.curve.getPointAt(star.userData.progress);
+            point.setXYZ(point.count - 1, newPos.x, newPos.y, newPos.z);
+            point.needsUpdate = true;
+        }
+    }
+
+    if (Math.random() < 0.02 && shootingStars.length < 5) {
+        shootingStars.push(createShootingStar());
+    }
 }
 
 function addNewLyrics() {
     if (!currentLyrics || !cachedFont) return;
 
-    const maxWords = isMobile ? 3 : 5;
-    const words = currentLyrics.split(/\s+/).slice(0, maxWords);
+    const words = currentLyrics.split('');
+    const color = changeTextColor();  // 固定色を取得
+
     words.forEach((word, index) => {
         if (!geometries[word]) {
             geometries[word] = new TextGeometry(word, {
                 font: cachedFont,
-                size: 2,
-                height: 0.5,
+                size: 10,
+                height: 1,
             });
             geometries[word].center();
         }
 
-        const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const material = new THREE.MeshBasicMaterial({ color: color });
         const textMesh = getWordMesh(word, material);
 
         if (isSphericalMode) {
-            const sphericalPosition = getRandomSphericalPosition(95); // 球体の半径より少し小さい値
+            const sphericalPosition = getRandomSphericalPosition(95);
             textMesh.position.copy(sphericalPosition);
-            textMesh.lookAt(new THREE.Vector3(0, 0, 0)); // 中心を向くように回転
+            textMesh.lookAt(new THREE.Vector3(0, 0, 0));
         } else {
             textMesh.position.set(
-                (Math.random() - 0.5) * 40,
+                (Math.random() - 0.5) * 100,
                 20 + index * 5,
-                (Math.random() - 0.5) * 40
+                (Math.random() - 0.5) * 100
             );
         }
-
-    
 
         const trailColor = new THREE.Color().setHSL(Math.random(), 1, 0.5);
         const trail = new THREE.Line(
@@ -525,7 +643,8 @@ function addNewLyrics() {
                 y: (Math.random() - 0.5) * 0.02,
                 z: (Math.random() - 0.5) * 0.02
             },
-            sphericalPosition: isSphericalMode ? getRandomSphericalCoordinates() : null
+            sphericalPosition: isSphericalMode ? getRandomSphericalCoordinates() : null,
+            fixedColor: color // 固定色を設定
         });
 
         particles.add(textMesh);
@@ -533,8 +652,8 @@ function addNewLyrics() {
 }
 
 function getRandomSphericalPosition(radius) {
-    const theta = Math.random() * Math.PI * 2; // 0 to 2π
-    const phi = Math.acos(2 * Math.random() - 1); // 0 to π
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.random() * Math.PI; // 0 から π の範囲
     const x = radius * Math.sin(phi) * Math.cos(theta);
     const y = radius * Math.sin(phi) * Math.sin(theta);
     const z = radius * Math.cos(phi);
@@ -568,12 +687,7 @@ function releaseWordMesh(mesh) {
 
 function changeTextColor() {
     const position = player.timer.position;
-    if (!position) {
-        console.error("プレイヤーの位置が無効です。");
-        return;
-    }
-
-    // 感情値を取得
+ 
     const valenceArousal = player.getValenceArousal(position);
     if (!valenceArousal) {
         console.error("感情値の取得に失敗しました。");
@@ -583,33 +697,22 @@ function changeTextColor() {
     const valence = valenceArousal.v;
     const arousal = valenceArousal.a;
 
-    if (valence === undefined || arousal === undefined) {
-        console.error("感情値が未定義です。");
-        return;
-    }
-
-    console.log(`Valence: ${valence}, Arousal: ${arousal}`);
-
     const color = new THREE.Color();
-    console.log(color);
-    color.setHSL((valence + 1) / 2, 1, (arousal + 1) / 2);
-    // wordMeshes.forEach(mesh => {
-    //     mesh.material.color.set(color);
-    // });
-    return color; // 色を返す
+    const hue = (1 - valence) / 3; // -1から1のvalenceを0から0.67の範囲に変換（赤から青）
+    const saturation = 1.0; // 彩度を最大に
+    const lightness = (arousal + 1) / 2 * 0.5 + 0.25; // 明度を調整してより鮮やかに
+
+    color.setHSL(hue, saturation, lightness);
+    return color;
 }
 
 function updateFallingWords() {
-    const currentColor = changeTextColor(); // 現在の感情値に基づく色を取得
-
     for (let i = wordTrails.length - 1; i >= 0; i--) {
         const word = wordTrails[i];
 
-        // 文字の色を更新
-        word.mesh.material.color.copy(currentColor);
+        word.mesh.material.color.copy(word.fixedColor); // 固定色を使用
 
         if (isSphericalMode) {
-            // 球面上を移動
             word.sphericalPosition.theta += 0.005;
             word.sphericalPosition.phi += 0.002;
             const newPosition = new THREE.Vector3(
@@ -620,14 +723,12 @@ function updateFallingWords() {
             word.mesh.position.copy(newPosition);
             word.mesh.lookAt(new THREE.Vector3(0, 0, 0));
         } else {
-            // 通常の落下モード
             word.mesh.position.y -= word.speed;
             word.mesh.rotation.x += word.rotationSpeed.x;
             word.mesh.rotation.y += word.rotationSpeed.y;
             word.mesh.rotation.z += word.rotationSpeed.z;
         }
 
-        // 軌跡を更新
         word.positions.push(word.mesh.position.clone());
         word.opacities.push(1);
 
@@ -636,15 +737,13 @@ function updateFallingWords() {
             word.opacities.shift();
         }
 
-        // 不透明度を徐々に下げる
         for (let j = 0; j < word.opacities.length; j++) {
             word.opacities[j] *= 0.99;
         }
 
-        // 軌跡の geometry と material を更新
         const geometry = new THREE.BufferGeometry().setFromPoints(word.positions);
         const material = word.trail.material.clone();
-        material.color.copy(currentColor); // 軌跡の色も更新
+        material.color.copy(word.fixedColor); // 固定色を使用
         material.opacity = 1;
 
         const colors = new Float32Array(word.positions.length * 3);
@@ -662,7 +761,6 @@ function updateFallingWords() {
         word.trail = new THREE.Line(geometry, material);
         scene.add(word.trail);
 
-        // 球面モードでは削除条件を変更
         if ((!isSphericalMode && word.mesh.position.y < -50) || 
             (isSphericalMode && word.opacities[0] < 0.01)) {
             particles.remove(word.mesh);
@@ -673,18 +771,56 @@ function updateFallingWords() {
     }
 }
 
-function animate(time) {
+function onDocumentMouseClick(event) {
+    event.preventDefault();
+
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(particles.children, true);
+
+    if (intersects.length > 0) {
+        const selectedObject = intersects[0].object;
+        explodeSelectedText(selectedObject);
+    }
+}
+
+function onDocumentTouchStart(event) {
+    event.preventDefault();
+
+    const touch = event.touches[0];
+    mouse.x = (touch.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(touch.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(particles.children, true);
+
+    if (intersects.length > 0) {
+        const selectedObject = intersects[0].object;
+        explodeSelectedText(selectedObject);
+    }
+}
+
+let lastTime = 0;
+const FPS = 30;
+const interval = 1000 / FPS;
+
+function animate(currentTime) {
     requestAnimationFrame(animate);
 
-    if (time - lastRenderTime > 1000 / (isMobile ? 20 : 30)) {
-        lastRenderTime = time;
-        updateFallingWords();
-        updateConfetti();
-        controls.update();
+    if (currentTime - lastTime < interval) return;
 
-        if (renderer && camera) {
-            renderer.render(scene, camera);
-        }
+    lastTime = currentTime;
+
+    updateFallingWords();
+    updateShootingStars();
+    updateConfetti();
+    updateFireworks();
+    controls.update();
+
+    if (renderer && camera) {
+        renderer.render(scene, camera);
     }
 }
 
@@ -718,16 +854,29 @@ function cleanUpScene() {
     });
     wordTrails = [];
     
+    shootingStars.forEach(star => {
+        scene.remove(star);
+        star.geometry.dispose();
+        star.material.dispose();
+    });
+    shootingStars = [];
+    
     if (confettiSystem) {
         scene.remove(confettiSystem);
         confettiSystem.geometry.dispose();
         confettiSystem.material.dispose();
         confettiSystem = null;
     }
+
     Object.values(geometries).forEach(geometry => geometry.dispose());
     geometries = {};
+
     wordPool.forEach(mesh => disposeMesh(mesh));
     wordPool = [];
+
+    if (scene.background && scene.background.isTexture) {
+        scene.background.dispose();
+    }
 }
 
 window.addEventListener('beforeunload', cleanUpScene);
